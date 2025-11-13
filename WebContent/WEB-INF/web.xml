@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <display-name>PlagiarismChecker</display-name>
+
+    <context-param>
+        <param-name>jdbcUrl</param-name>
+        <param-value>jdbc:mysql://localhost:3306/plagiarism_checker?useSSL=false&amp;serverTimezone=UTC</param-value>
+    </context-param>
+    <context-param>
+        <param-name>jdbcUser</param-name>
+        <param-value>root</param-value>
+    </context-param>
+    <context-param>
+        <param-name>jdbcPassword</param-name>
+        <param-value>password</param-value>
+    </context-param>
+
+    <listener>
+        <listener-class>controller.QueueWorker</listener-class>
+    </listener>
+
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>controller.LoginServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>UploadServlet</servlet-name>
+        <servlet-class>controller.UploadServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>UploadServlet</servlet-name>
+        <url-pattern>/upload</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>ResultServlet</servlet-name>
+        <servlet-class>controller.ResultServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ResultServlet</servlet-name>
+        <url-pattern>/results</url-pattern>
+    </servlet-mapping>
+
+    <welcome-file-list>
+        <welcome-file>jsp/login.jsp</welcome-file>
+    </welcome-file-list>
+    <dependencies>
+  <dependency>
+    <groupId>jakarta.servlet</groupId>
+    <artifactId>jakarta.servlet-api</artifactId>
+    <version>6.0.0</version> <!-- hoặc 5.0.0 tùy server -->
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+
+</web-app>
