@@ -4,9 +4,15 @@ import java.time.LocalDateTime;
 
 public class Submission {
     private int id;
-    private int userId;
+    private String batchToken;
+    private Integer userId;
+    private String guestToken;
     private String filename;
-    private String content;
+    private String rawContent;
+    private String cleanedContent;
+    private String status;
+    private int stackOrder;
+    private long uploadSize;
     private LocalDateTime uploadTime;
 
     public int getId() {
@@ -17,12 +23,28 @@ public class Submission {
         this.id = id;
     }
 
-    public int getUserId() {
+    public String getBatchToken() {
+        return batchToken;
+    }
+
+    public void setBatchToken(String batchToken) {
+        this.batchToken = batchToken;
+    }
+
+    public Integer getUserId() {
         return userId;
     }
 
-    public void setUserId(int userId) {
+    public void setUserId(Integer userId) {
         this.userId = userId;
+    }
+
+    public String getGuestToken() {
+        return guestToken;
+    }
+
+    public void setGuestToken(String guestToken) {
+        this.guestToken = guestToken;
     }
 
     public String getFilename() {
@@ -33,12 +55,44 @@ public class Submission {
         this.filename = filename;
     }
 
-    public String getContent() {
-        return content;
+    public String getRawContent() {
+        return rawContent;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setRawContent(String rawContent) {
+        this.rawContent = rawContent;
+    }
+
+    public String getCleanedContent() {
+        return cleanedContent;
+    }
+
+    public void setCleanedContent(String cleanedContent) {
+        this.cleanedContent = cleanedContent;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public int getStackOrder() {
+        return stackOrder;
+    }
+
+    public void setStackOrder(int stackOrder) {
+        this.stackOrder = stackOrder;
+    }
+
+    public long getUploadSize() {
+        return uploadSize;
+    }
+
+    public void setUploadSize(long uploadSize) {
+        this.uploadSize = uploadSize;
     }
 
     public LocalDateTime getUploadTime() {

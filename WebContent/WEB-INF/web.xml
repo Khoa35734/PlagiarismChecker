@@ -16,7 +16,7 @@
     </context-param>
     <context-param>
         <param-name>jdbcPassword</param-name>
-        <param-value>password</param-value>
+        <param-value>khoakhoa04</param-value>
     </context-param>
 
     <listener>
@@ -50,16 +50,28 @@
         <url-pattern>/results</url-pattern>
     </servlet-mapping>
 
+    <servlet>
+        <servlet-name>AdminLoginServlet</servlet-name>
+        <servlet-class>controller.AdminLoginServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminLoginServlet</servlet-name>
+        <url-pattern>/adminLogin</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>AdminUploadServlet</servlet-name>
+        <servlet-class>controller.AdminUploadServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminUploadServlet</servlet-name>
+        <url-pattern>/adminUpload</url-pattern>
+    </servlet-mapping>
+
+
+
     <welcome-file-list>
-        <welcome-file>jsp/login.jsp</welcome-file>
+        <welcome-file>jsp/upload.jsp</welcome-file>
     </welcome-file-list>
-    <dependencies>
-  <dependency>
-    <groupId>jakarta.servlet</groupId>
-    <artifactId>jakarta.servlet-api</artifactId>
-    <version>6.0.0</version> <!-- hoặc 5.0.0 tùy server -->
-    <scope>provided</scope>
-  </dependency>
-</dependencies>
 
 </web-app>

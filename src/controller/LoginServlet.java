@@ -34,12 +34,15 @@ public class LoginServlet extends HttpServlet {
         String password = request.getParameter("password");
 
         try {
-            Integer userId = authenticate(username, password);
-            if (userId != null) {
+            AuthenticatedUser user = authenticate(username, password);
+            if (user != null) {
                 HttpSession session = request.getSession(true);
-                session.setAttribute("userId", userId);
+                session.setAttribute("userId", user.id());
                 session.setAttribute("username", username);
-                response.sendRedirect(request.getContextPath() + "/upload");
+                session.setAttribute("role", user.role());
+
+                String destination = "ADMIN".equals(user.role()) ? "/admin" : "/upload";
+                response.sendRedirect(request.getContextPath() + destination);
             } else {
                 request.setAttribute("error", "Invalid credentials");
                 RequestDispatcher dispatcher = request.getRequestDispatcher("/jsp/login.jsp");
@@ -50,18 +53,21 @@ public class LoginServlet extends HttpServlet {
         }
     }
 
-    private Integer authenticate(String username, String password) throws SQLException {
-        String sql = "SELECT id FROM Users WHERE username = ? AND password = ?";
+    private AuthenticatedUser authenticate(String username, String password) throws SQLException {
+        String sql = "SELECT id, role FROM Users WHERE username = ? AND password = ?";
         try (Connection connection = DatabaseUtils.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, username);
             statement.setString(2, password);
             try (ResultSet rs = statement.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getInt("id");
+                    return new AuthenticatedUser(rs.getInt("id"), rs.getString("role"));
                 }
             }
         }
         return null;
+    }
+
+    private record AuthenticatedUser(int id, String role) {
     }
 }

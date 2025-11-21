@@ -3,8 +3,11 @@ package model;
 public class Result {
     private int id;
     private int submissionId;
-    private int comparedWith;
-    private float similarity;
+    private double similarityWinnowing;
+    private double similarityTfidf;
+    private String matchedSegmentsJson;
+    private String status;
+    private String sourceDocument;
 
     public int getId() {
         return id;
@@ -22,19 +25,43 @@ public class Result {
         this.submissionId = submissionId;
     }
 
-    public int getComparedWith() {
-        return comparedWith;
+    public double getSimilarityWinnowing() {
+        return similarityWinnowing;
     }
 
-    public void setComparedWith(int comparedWith) {
-        this.comparedWith = comparedWith;
+    public void setSimilarityWinnowing(double similarityWinnowing) {
+        this.similarityWinnowing = similarityWinnowing;
     }
 
-    public float getSimilarity() {
-        return similarity;
+    public double getSimilarityTfidf() {
+        return similarityTfidf;
     }
 
-    public void setSimilarity(float similarity) {
-        this.similarity = similarity;
+    public void setSimilarityTfidf(double similarityTfidf) {
+        this.similarityTfidf = similarityTfidf;
+    }
+
+    public String getMatchedSegmentsJson() {
+        return matchedSegmentsJson;
+    }
+
+    public void setMatchedSegmentsJson(String matchedSegmentsJson) {
+        this.matchedSegmentsJson = matchedSegmentsJson;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getSourceDocument() {
+        return sourceDocument;
+    }
+
+    public void setSourceDocument(String sourceDocument) {
+        this.sourceDocument = sourceDocument;
     }
 }

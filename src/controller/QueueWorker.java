@@ -13,6 +13,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -20,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 public class QueueWorker implements ServletContextListener {
     private static final BlockingQueue<Integer> QUEUE = new LinkedBlockingQueue<>();
+    private static final ConcurrentHashMap<Integer, CompletableFuture<Void>> FUTURES = new ConcurrentHashMap<>();
     private static ExecutorService executor;
     private static volatile boolean running;
     private static ServletContext servletContext;
@@ -27,10 +30,6 @@ public class QueueWorker implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         servletContext = sce.getServletContext();
-        String jdbcUrl = servletContext.getInitParameter("jdbcUrl");
-        String jdbcUser = servletContext.getInitParameter("jdbcUser");
-        String jdbcPassword = servletContext.getInitParameter("jdbcPassword");
-        DatabaseUtils.configure(jdbcUrl, jdbcUser, jdbcPassword);
 
         running = true;
         executor = Executors.newSingleThreadExecutor(runnable -> {
@@ -56,8 +55,11 @@ public class QueueWorker implements ServletContextListener {
         servletContext = null;
     }
 
-    public static void enqueueSubmission(int submissionId) {
+    public static CompletableFuture<Void> enqueueSubmission(int submissionId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        FUTURES.put(submissionId, future);
         QUEUE.offer(submissionId);
+        return future;
     }
 
     private static void processLoop() {
@@ -74,30 +76,41 @@ public class QueueWorker implements ServletContextListener {
         }
     }
 
-    private static void processSubmission(int submissionId) throws SQLException {
-        List<SubmissionData> comparisonPool = new ArrayList<>();
-        SubmissionData targetSubmission = null;
-
+    private static void processSubmission(int submissionId) {
         try (Connection connection = DatabaseUtils.getConnection()) {
-            targetSubmission = loadSubmission(connection, submissionId);
-            if (targetSubmission == null) {
+            SubmissionData target = loadSubmission(connection, submissionId);
+            if (target == null) {
                 log("Submission " + submissionId + " not found", null);
+                complete(submissionId);
                 return;
             }
-
-            comparisonPool = loadOtherSubmissions(connection, submissionId);
+            updateStatus(connection, submissionId, "PROCESSING");
+            List<SubmissionData> others = loadOtherSubmissions(connection, submissionId);
             clearPreviousResults(connection, submissionId);
-            insertResults(connection, targetSubmission, comparisonPool);
+            insertResults(connection, target, others);
+            updateStatus(connection, submissionId, "DONE");
+        } catch (SQLException ex) {
+            log("Processing failed for submission " + submissionId + ": " + ex.getMessage(), ex);
+        } finally {
+            complete(submissionId);
+        }
+    }
+
+    private static void updateStatus(Connection connection, int submissionId, String status) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("UPDATE Submissions SET status = ? WHERE id = ?")) {
+            statement.setString(1, status);
+            statement.setInt(2, submissionId);
+            statement.executeUpdate();
         }
     }
 
     private static SubmissionData loadSubmission(Connection connection, int submissionId) throws SQLException {
-        String sql = "SELECT id, content FROM Submissions WHERE id = ?";
+        String sql = "SELECT id, cleaned_content FROM Submissions WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, submissionId);
             try (ResultSet rs = statement.executeQuery()) {
                 if (rs.next()) {
-                    return new SubmissionData(rs.getInt("id"), rs.getString("content"));
+                    return new SubmissionData(rs.getInt("id"), rs.getString("cleaned_content"));
                 }
             }
         }
@@ -105,13 +118,13 @@ public class QueueWorker implements ServletContextListener {
     }
 
     private static List<SubmissionData> loadOtherSubmissions(Connection connection, int submissionId) throws SQLException {
-        String sql = "SELECT id, content FROM Submissions WHERE id <> ?";
+        String sql = "SELECT id, cleaned_content FROM Submissions WHERE id <> ?";
         List<SubmissionData> list = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, submissionId);
             try (ResultSet rs = statement.executeQuery()) {
                 while (rs.next()) {
-                    list.add(new SubmissionData(rs.getInt("id"), rs.getString("content")));
+                    list.add(new SubmissionData(rs.getInt("id"), rs.getString("cleaned_content")));
                 }
             }
         }
@@ -127,18 +140,41 @@ public class QueueWorker implements ServletContextListener {
 
     private static void insertResults(Connection connection, SubmissionData target, List<SubmissionData> others) throws SQLException {
         if (others.isEmpty()) {
+            insertEmptyResult(connection, target.id());
             return;
         }
-        String insertSql = "INSERT INTO Results (submission_id, compared_with, similarity) VALUES (?, ?, ?)";
+        String insertSql = "INSERT INTO Results (submission_id, similarity_winnowing, similarity_tfidf, matched_segments, status, source_document) VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
             for (SubmissionData other : others) {
                 double similarity = TextSimilarity.jaccardSimilarity(target.content(), other.content());
+                double tfidf = similarity; // placeholder until TF-IDF module is implemented
+                String segmentsJson = "[]";
+                String status = similarity > 0.5 ? "Plagiarism Suspected" : "No Issues";
                 statement.setInt(1, target.id());
-                statement.setInt(2, other.id());
-                statement.setDouble(3, similarity);
+                statement.setDouble(2, similarity);
+                statement.setDouble(3, tfidf);
+                statement.setString(4, segmentsJson);
+                statement.setString(5, status);
+                statement.setString(6, "Submission " + other.id());
                 statement.addBatch();
             }
             statement.executeBatch();
+        }
+    }
+
+    private static void insertEmptyResult(Connection connection, int submissionId) throws SQLException {
+        String sql = "INSERT INTO Results (submission_id, similarity_winnowing, similarity_tfidf, matched_segments, status, source_document) " +
+                     "VALUES (?, 0, 0, '[]', 'No Issues', NULL)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, submissionId);
+            statement.executeUpdate();
+        }
+    }
+
+    private static void complete(int submissionId) {
+        CompletableFuture<Void> future = FUTURES.remove(submissionId);
+        if (future != null) {
+            future.complete(null);
         }
     }
 
