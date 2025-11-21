@@ -17,7 +17,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,19 +25,6 @@ import java.util.List;
 @MultipartConfig
 public class AdminUploadServlet extends HttpServlet {
     private static final String UPLOAD_DIR = "documents";
-    private static final long MAX_TOTAL_BYTES = Long.MAX_VALUE;
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        HttpSession session = request.getSession(false);
-        Integer adminId = session != null ? (Integer) session.getAttribute("adminId") : null;
-        if (session == null || session.getAttribute("adminLoggedIn") == null || adminId == null) {
-            response.sendRedirect(request.getContextPath() + "/jsp/adminLogin.jsp");
-            return;
-        }
-        request.setAttribute("documents", loadDocuments(adminId));
-        request.getRequestDispatcher("/jsp/adminUpload.jsp").forward(request, response);
-    }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -86,30 +72,7 @@ public class AdminUploadServlet extends HttpServlet {
         } else {
             request.setAttribute("message", "Uploaded: " + String.join(", ", uploaded));
         }
-        request.setAttribute("documents", loadDocuments(adminId));
         request.getRequestDispatcher("/jsp/adminUpload.jsp").forward(request, response);
-    }
-
-    private List<AdminDashboardServlet.DocumentRow> loadDocuments(int adminId) throws ServletException {
-        String sql = "SELECT id, filename, upload_time, filesize FROM Documents WHERE owner_id = ? ORDER BY upload_time DESC";
-        List<AdminDashboardServlet.DocumentRow> rows = new ArrayList<>();
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, adminId);
-            try (ResultSet rs = statement.executeQuery()) {
-                while (rs.next()) {
-                    AdminDashboardServlet.DocumentRow row = new AdminDashboardServlet.DocumentRow();
-                    row.id = rs.getInt("id");
-                    row.filename = rs.getString("filename");
-                    row.uploadTime = rs.getTimestamp("upload_time");
-                    row.filesize = rs.getLong("filesize");
-                    rows.add(row);
-                }
-            }
-        } catch (SQLException e) {
-            throw new ServletException("Unable to load document list", e);
-        }
-        return rows;
     }
 
     private void saveDocument(int ownerId, String filename, String filepath, long size, String mimeType) throws SQLException {

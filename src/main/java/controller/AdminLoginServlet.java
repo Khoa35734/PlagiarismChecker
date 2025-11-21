@@ -1,6 +1,5 @@
 package controller;
 
-import com.mysql.cj.jdbc.AbandonedConnectionCleanupThread;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,26 +9,11 @@ import model.DatabaseUtils;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Enumeration;
-import java.util.logging.Logger;
 
 public class AdminLoginServlet extends HttpServlet {
-    private static final long serialVersionUID = 1L;
-    private static final Logger LOGGER = Logger.getLogger(AdminLoginServlet.class.getName());
-
-    static {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException ex) {
-            throw new ExceptionInInitializerError("Missing MySQL driver");
-        }
-    }
-
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         request.getRequestDispatcher("/jsp/adminLogin.jsp").forward(request, response);
@@ -53,7 +37,6 @@ public class AdminLoginServlet extends HttpServlet {
             throw new ServletException("Failed to authenticate admin", ex);
         }
 
-        request.setAttribute("error", "Invalid username or password");
         request.getRequestDispatcher("/jsp/adminLogin.jsp").forward(request, response);
     }
 
@@ -70,41 +53,5 @@ public class AdminLoginServlet extends HttpServlet {
             }
         }
         return null;
-    }
-
-    @Override
-    public void destroy() {
-        shutdownCleanupThread();
-        deregisterJdbcDrivers();
-    }
-
-    private void shutdownCleanupThread() {
-        try {
-            runCleanupShutdown();
-        } catch (java.lang.InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            LOGGER.warning("Interrupted while stopping MySQL cleanup thread");
-        } catch (Exception ex) {
-            LOGGER.warning("Failed to stop MySQL cleanup thread: " + ex.getMessage());
-        }
-    }
-
-    private void runCleanupShutdown() throws java.lang.InterruptedException {
-        AbandonedConnectionCleanupThread.checkedShutdown();
-    }
-
-    private void deregisterJdbcDrivers() {
-        Enumeration<Driver> drivers = DriverManager.getDrivers();
-        while (drivers.hasMoreElements()) {
-            Driver driver = drivers.nextElement();
-            if (driver.getClass().getClassLoader() == getClass().getClassLoader()) {
-                try {
-                    DriverManager.deregisterDriver(driver);
-                    LOGGER.fine("Deregistered JDBC driver: " + driver);
-                } catch (SQLException ex) {
-                    LOGGER.warning("Unable to deregister driver " + driver + ": " + ex.getMessage());
-                }
-            }
-        }
     }
 }
