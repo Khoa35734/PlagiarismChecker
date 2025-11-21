@@ -4,6 +4,8 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import model.DatabaseUtils;
+import utils.FileParser;
+import utils.TextCleaner;
 import utils.TextSimilarity;
 
 import java.sql.Connection;
@@ -108,12 +110,12 @@ public class QueueWorker implements ServletContextListener {
     }
 
     private static SubmissionData loadSubmission(Connection connection, int submissionId) throws SQLException {
-        String sql = "SELECT id, cleaned_content FROM Submissions WHERE id = ?";
+        String sql = "SELECT id, cleaned_content, filename FROM Submissions WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, submissionId);
             try (ResultSet rs = statement.executeQuery()) {
                 if (rs.next()) {
-                    return new SubmissionData(rs.getInt("id"), rs.getString("cleaned_content"));
+                    return new SubmissionData(rs.getInt("id"), rs.getString("cleaned_content"), rs.getString("filename"));
                 }
             }
         }
@@ -121,21 +123,66 @@ public class QueueWorker implements ServletContextListener {
     }
 
     private static List<SubmissionData> loadOtherSubmissions(Connection connection, int submissionId) throws SQLException {
-        // Only compare with previously COMPLETED submissions, not the current one
-        String sql = "SELECT id, cleaned_content FROM Submissions WHERE id < ? AND status = 'COMPLETED' AND cleaned_content IS NOT NULL";
+        // Compare with Documents repository (admin-uploaded reference documents)
         List<SubmissionData> list = new ArrayList<>();
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, submissionId);
-            try (ResultSet rs = statement.executeQuery()) {
-                while (rs.next()) {
-                    String content = rs.getString("cleaned_content");
-                    if (content != null && !content.trim().isEmpty()) {
-                        list.add(new SubmissionData(rs.getInt("id"), content));
+
+        // First, try to get documents from admin repository
+        String docSql = "SELECT d.id, d.filename, d.filepath FROM Documents d ORDER BY d.upload_time DESC";
+        try (PreparedStatement statement = connection.prepareStatement(docSql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                int docId = rs.getInt("id");
+                String filename = rs.getString("filename");
+                String filepath = rs.getString("filepath");
+
+                // Extract text from document file
+                String content = extractDocumentContent(filepath, filename);
+                if (content != null && !content.trim().isEmpty()) {
+                    list.add(new SubmissionData(docId, content, filename));
+                }
+            }
+        }
+
+        // If no documents in repository, fall back to comparing with previous submissions
+        if (list.isEmpty()) {
+            String subSql = "SELECT id, cleaned_content, filename FROM Submissions WHERE id < ? AND status = 'DONE' AND cleaned_content IS NOT NULL";
+            try (PreparedStatement statement = connection.prepareStatement(subSql)) {
+                statement.setInt(1, submissionId);
+                try (ResultSet rs = statement.executeQuery()) {
+                    while (rs.next()) {
+                        String content = rs.getString("cleaned_content");
+                        if (content != null && !content.trim().isEmpty()) {
+                            list.add(new SubmissionData(rs.getInt("id"), content, rs.getString("filename")));
+                        }
                     }
                 }
             }
         }
+
         return list;
+    }
+
+    private static String extractDocumentContent(String filepath, String filename) {
+        try {
+            // Get the actual file path from the webapp
+            if (servletContext != null) {
+                String realPath = servletContext.getRealPath(filepath);
+                if (realPath != null) {
+                    java.io.File file = new java.io.File(realPath);
+                    if (file.exists()) {
+                        // Use FileParser to extract text
+                        try (java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
+                            String extractedText = FileParser.extractText(fis, filename);
+                            // Clean the text
+                            return TextCleaner.clean(extractedText);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log("Failed to extract content from document: " + filename + " - " + e.getMessage(), e);
+        }
+        return null;
     }
 
     private static void clearPreviousResults(Connection connection, int submissionId) throws SQLException {
@@ -160,12 +207,13 @@ public class QueueWorker implements ServletContextListener {
             double similarity = TextSimilarity.jaccardSimilarity(target.content(), other.content());
             if (similarity > maxSimilarity) {
                 maxSimilarity = similarity;
-                maxSource = "Submission " + other.id();
+                maxSource = other.filename() != null ? other.filename() : "Document #" + other.id();
             }
 
             // Calculate matched segments
             if (similarity > 0.1) { // Only include if similarity > 10%
-                String segments = TextSimilarity.findMatchedSegments(target.content(), other.content(), other.id());
+                String docName = other.filename() != null ? other.filename() : "Document #" + other.id();
+                String segments = TextSimilarity.findMatchedSegmentsWithSource(target.content(), other.content(), docName);
                 if (!segments.equals("[]") && allSegments.length() > 1) {
                     allSegments.append(",");
                 }
@@ -219,6 +267,10 @@ public class QueueWorker implements ServletContextListener {
         }
     }
 
-    private record SubmissionData(int id, String content) {
+    private record SubmissionData(int id, String content, String filename) {
+        // Constructor for submissions without filename
+        SubmissionData(int id, String content) {
+            this(id, content, null);
+        }
     }
 }

@@ -1,0 +1,11 @@
+<!-- ...existing code... -->
+<servlet>
+    <servlet-name>AdminLoginServlet</servlet-name>
+    <servlet-class>controller.AdminLoginServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+</servlet>
+<servlet-mapping>
+    <servlet-name>AdminLoginServlet</servlet-name>
+    <url-pattern>/adminLogin</url-pattern>
+</servlet-mapping>
+<!-- ...existing code... -->
