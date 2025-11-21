@@ -26,9 +26,12 @@ public class QueueWorker implements ServletContextListener {
     private static ExecutorService executor;
     private static volatile boolean running;
     private static ServletContext servletContext;
+    private static boolean initialized = false;
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
+        if (initialized) return;
+        initialized = true;
         servletContext = sce.getServletContext();
 
         running = true;
@@ -118,13 +121,17 @@ public class QueueWorker implements ServletContextListener {
     }
 
     private static List<SubmissionData> loadOtherSubmissions(Connection connection, int submissionId) throws SQLException {
-        String sql = "SELECT id, cleaned_content FROM Submissions WHERE id <> ?";
+        // Only compare with previously COMPLETED submissions, not the current one
+        String sql = "SELECT id, cleaned_content FROM Submissions WHERE id < ? AND status = 'COMPLETED' AND cleaned_content IS NOT NULL";
         List<SubmissionData> list = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, submissionId);
             try (ResultSet rs = statement.executeQuery()) {
                 while (rs.next()) {
-                    list.add(new SubmissionData(rs.getInt("id"), rs.getString("cleaned_content")));
+                    String content = rs.getString("cleaned_content");
+                    if (content != null && !content.trim().isEmpty()) {
+                        list.add(new SubmissionData(rs.getInt("id"), content));
+                    }
                 }
             }
         }
@@ -143,22 +150,50 @@ public class QueueWorker implements ServletContextListener {
             insertEmptyResult(connection, target.id());
             return;
         }
+
+        // Calculate overall similarity across all documents
+        double maxSimilarity = 0.0;
+        String maxSource = null;
+        StringBuilder allSegments = new StringBuilder("[");
+
+        for (SubmissionData other : others) {
+            double similarity = TextSimilarity.jaccardSimilarity(target.content(), other.content());
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity;
+                maxSource = "Submission " + other.id();
+            }
+
+            // Calculate matched segments
+            if (similarity > 0.1) { // Only include if similarity > 10%
+                String segments = TextSimilarity.findMatchedSegments(target.content(), other.content(), other.id());
+                if (!segments.equals("[]") && allSegments.length() > 1) {
+                    allSegments.append(",");
+                }
+                if (!segments.equals("[]")) {
+                    allSegments.append(segments, 1, segments.length() - 1); // Remove outer brackets
+                }
+            }
+        }
+        allSegments.append("]");
+
+        String status;
+        if (maxSimilarity > 0.5) {
+            status = "Plagiarism Suspected";
+        } else if (maxSimilarity > 0.2) {
+            status = "Partial Match";
+        } else {
+            status = "No Issues";
+        }
+
         String insertSql = "INSERT INTO Results (submission_id, similarity_winnowing, similarity_tfidf, matched_segments, status, source_document) VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
-            for (SubmissionData other : others) {
-                double similarity = TextSimilarity.jaccardSimilarity(target.content(), other.content());
-                double tfidf = similarity; // placeholder until TF-IDF module is implemented
-                String segmentsJson = "[]";
-                String status = similarity > 0.5 ? "Plagiarism Suspected" : "No Issues";
-                statement.setInt(1, target.id());
-                statement.setDouble(2, similarity);
-                statement.setDouble(3, tfidf);
-                statement.setString(4, segmentsJson);
-                statement.setString(5, status);
-                statement.setString(6, "Submission " + other.id());
-                statement.addBatch();
-            }
-            statement.executeBatch();
+            statement.setInt(1, target.id());
+            statement.setDouble(2, maxSimilarity);
+            statement.setDouble(3, maxSimilarity); // Use same value for now
+            statement.setString(4, allSegments.toString());
+            statement.setString(5, status);
+            statement.setString(6, maxSource);
+            statement.executeUpdate();
         }
     }
 
