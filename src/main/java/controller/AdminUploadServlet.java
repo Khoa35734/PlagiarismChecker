@@ -23,9 +23,9 @@ import java.util.Collection;
 import java.util.List;
 
 @MultipartConfig(
-    fileSizeThreshold = 1024 * 1024, // 1 MB
-    maxFileSize = 1024 * 1024 * 10,      // 10 MB
-    maxRequestSize = 1024 * 1024 * 25    // 25 MB
+    fileSizeThreshold = 0, // 1 MB
+    maxFileSize = -1l,      // 10 MB
+    maxRequestSize = -1l    // 25 MB
 )
 public class AdminUploadServlet extends HttpServlet {
     private static final String UPLOAD_DIR = "documents";
