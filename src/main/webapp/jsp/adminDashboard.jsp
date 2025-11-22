@@ -272,6 +272,7 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Filename (Click to Download)</th>
+                                <th>Owner</th>
                                 <th>Size</th>
                                 <th>Upload Date</th>
                                 <th>Actions</th>
@@ -297,6 +298,7 @@
                                             <span>${doc.filename}</span>
                                         </a>
                                     </td>
++                                    <td>${doc.ownerName}</td>
                                     <td>
                                         <fmt:formatNumber value="${doc.filesize / 1024}" maxFractionDigits="2" /> KB
                                     </td>
