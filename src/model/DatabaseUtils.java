@@ -9,9 +9,9 @@ import java.util.Objects;
  * Centralized JDBC helper that gets configured from web.xml context params.
  */
 public final class DatabaseUtils {
-    private static String jdbcUrl;
-    private static String jdbcUser;
-    private static String jdbcPassword;
+    private static String jdbcUrl = "jdbc:mysql://localhost:3306/plagiarism_checker";
+    private static String jdbcUser = "root";
+    private static String jdbcPassword = "123456789Quoc#";
     private static volatile boolean driverLoaded;
 
     private DatabaseUtils() {

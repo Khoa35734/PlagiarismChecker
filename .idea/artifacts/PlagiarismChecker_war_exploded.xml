@@ -1,0 +1,21 @@
+<component name="ArtifactManager">
+  <artifact type="exploded-war" name="PlagiarismChecker:war exploded">
+    <output-path>$PROJECT_DIR$/out/artifacts/PlagiarismChecker_war_exploded</output-path>
+    <root id="root">
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="classes">
+          <element id="module-output" name="PlagiarismChecker" />
+        </element>
+        <element id="directory" name="lib">
+          <element id="library" level="project" name="Maven: com.mysql:mysql-connector-j:8.2.0" />
+          <element id="library" level="project" name="Maven: org.glassfish.web:jakarta.servlet.jsp.jstl:3.0.1" />
+          <element id="library" level="project" name="Maven: jakarta.servlet.jsp.jstl:jakarta.servlet.jsp.jstl-api:3.0.1" />
+          <element id="library" level="project" name="Maven: org.apache.poi:poi:5.2.5" />
+          <element id="library" level="project" name="Maven: org.apache.poi:poi-ooxml:5.2.5" />
+          <element id="library" level="project" name="Maven: org.apache.pdfbox:pdfbox:3.0.2" />
+        </element>
+      </element>
+      <element id="javaee-facet-resources" facet="PlagiarismChecker/web/Web" />
+    </root>
+  </artifact>
+</component>
