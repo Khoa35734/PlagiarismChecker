@@ -10,7 +10,7 @@ import java.io.IOException;
 
 /**
  * AdminServlet - Main entry point for /admin
- * Redirects to dashboard if logged in, or to login page
+ * Forwards to dashboard if logged in, or redirects to login page.
  * Mapped in web.xml to /admin
  */
 public class AdminServlet extends HttpServlet {
@@ -21,12 +21,12 @@ public class AdminServlet extends HttpServlet {
         HttpSession session = request.getSession(false);
 
         // Check if admin is logged in
-        if (session != null && session.getAttribute("adminLoggedIn") != null) {
-            // Redirect to dashboard
-            response.sendRedirect(request.getContextPath() + "/admin/dashboard");
+        if (session != null && session.getAttribute("adminLoggedIn") != null && (Boolean) session.getAttribute("adminLoggedIn")) {
+            // Forward to the admin dashboard JSP
+            request.getRequestDispatcher("/jsp/adminDashboard.jsp").forward(request, response);
         } else {
-            // Redirect to login page
-            response.sendRedirect(request.getContextPath() + "/jsp/adminLogin.jsp");
+            // Redirect to the correct login page
+            response.sendRedirect(request.getContextPath() + "/login");
         }
     }
 
@@ -36,4 +36,3 @@ public class AdminServlet extends HttpServlet {
         doGet(request, response);
     }
 }
-

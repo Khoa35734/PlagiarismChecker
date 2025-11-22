@@ -30,20 +30,21 @@ public class AdminDashboardServlet extends HttpServlet {
         }
 
         List<DocumentRow> documents = new ArrayList<>();
-        String sql = "SELECT id, filename, upload_time, filesize FROM Documents WHERE owner_id = ? ORDER BY upload_time DESC";
+        String sql = "SELECT d.id, d.filename, d.upload_time, d.filesize, u.username AS owner_name " +
+                     "FROM Documents d JOIN Users u ON d.owner_id = u.id " +
+                     "WHERE u.role = 'ADMIN' ORDER BY d.upload_time DESC";
 
         try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, adminId);
-            try (ResultSet rs = statement.executeQuery()) {
-                while (rs.next()) {
-                    DocumentRow row = new DocumentRow();
-                    row.id = rs.getInt("id");
-                    row.filename = rs.getString("filename");
-                    row.uploadTime = rs.getTimestamp("upload_time");
-                    row.filesize = rs.getLong("filesize");
-                    documents.add(row);
-                }
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                DocumentRow row = new DocumentRow();
+                row.id = rs.getInt("id");
+                row.filename = rs.getString("filename");
+                row.uploadTime = rs.getTimestamp("upload_time");
+                row.filesize = rs.getLong("filesize");
+                row.ownerName = rs.getString("owner_name");
+                documents.add(row);
             }
         } catch (SQLException e) {
             throw new ServletException("Database error while fetching documents", e);
@@ -58,6 +59,7 @@ public class AdminDashboardServlet extends HttpServlet {
         public int id;
         public String filename;
         public long filesize;
+        public String ownerName;
         public java.sql.Timestamp uploadTime;
 
         public int getId() {
@@ -74,6 +76,10 @@ public class AdminDashboardServlet extends HttpServlet {
 
         public java.sql.Timestamp getUploadTime() {
             return uploadTime;
+        }
+
+        public String getOwnerName() {
+            return ownerName;
         }
     }
 }

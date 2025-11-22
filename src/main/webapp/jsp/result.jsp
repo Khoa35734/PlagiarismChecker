@@ -289,45 +289,27 @@
                     <c:set var="exactPercent" value="${row.simWinnowing * 100}" />
                     <c:set var="partialPercent" value="${0}" />
 
-                    <%-- Determine chart color based on similarity --%>
-                    <c:choose>
-                        <c:when test="${exactPercent > 50}">
-                            <c:set var="chartColor" value="#FF6B6B" />
-                            <c:set var="chartPercent" value="${exactPercent}" />
-                            <c:set var="chartLabel" value="Đạo văn" />
-                        </c:when>
-                        <c:when test="${exactPercent > 20}">
-                            <c:set var="chartColor" value="#FFA500" />
-                            <c:set var="chartPercent" value="${exactPercent}" />
-                            <c:set var="chartLabel" value="Khả nghi" />
-                        </c:when>
-                        <c:otherwise>
-                            <c:set var="chartColor" value="#9BCF53" />
-                            <c:set var="chartPercent" value="${uniquePercent}" />
-                            <c:set var="chartLabel" value="Độc nhất" />
-                        </c:otherwise>
-                    </c:choose>
-
                     <div class="result-card">
                         <div class="file-name">📄 ${row.filename}</div>
 
                         <div class="chart-container">
                             <svg viewBox="0 0 36 36" class="circular-chart">
                                 <path class="circle-bg"
+                                      stroke="#9BCF53"
                                       d="M18 2.0845
                                          a 15.9155 15.9155 0 0 1 0 31.831
                                          a 15.9155 15.9155 0 0 1 0 -31.831"
                                 />
                                 <path class="circle"
-                                      stroke="${chartColor}"
-                                      stroke-dasharray="${chartPercent}, 100"
+                                      stroke="#FF6B6B"
+                                      stroke-dasharray="${exactPercent}, 100"
                                       d="M18 2.0845
                                          a 15.9155 15.9155 0 0 1 0 31.831
                                          a 15.9155 15.9155 0 0 1 0 -31.831"
                                 />
                             </svg>
                             <div class="percentage">
-                                <fmt:formatNumber value="${chartPercent}" maxFractionDigits="0" />%
+                                <fmt:formatNumber value="${exactPercent}" maxFractionDigits="0" />%
                             </div>
                         </div>
 
