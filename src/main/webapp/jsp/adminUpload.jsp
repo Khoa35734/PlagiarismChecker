@@ -175,14 +175,31 @@
         }
 
         .file-item {
-            padding: 8px;
+            padding: 12px;
             border-bottom: 1px solid #f0f0f0;
             color: #555;
             font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .file-item:hover {
+            background-color: #f8f9fa;
         }
 
         .file-item:last-child {
             border-bottom: none;
+        }
+
+        .file-item button {
+            transition: all 0.2s ease;
+        }
+
+        .file-item button:hover {
+            background-color: #c82333 !important;
+            transform: scale(1.1);
         }
 
         .helper-text {
@@ -239,6 +256,38 @@
         .btn-secondary:hover {
             background: #5a6268;
         }
+
+        .progress-wrapper {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 18px;
+            background: #e0e7ff;
+            border-radius: 9px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(135deg, #42e695 0%, #3bb2b8 100%);
+            transition: width 0.2s ease;
+        }
+
+        .progress-status {
+            margin-top: 6px;
+            font-size: 13px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
@@ -248,17 +297,19 @@
             <p>Build your plagiarism detection reference corpus</p>
         </div>
 
-        <c:if test="${not empty message}">
-            <div class="message success">
-                ✓ ${message}
-            </div>
-        </c:if>
+        <div id="message-container">
+            <c:if test="${not empty message}">
+                <div class="message success">
+                    ✓ ${message}
+                </div>
+            </c:if>
 
-        <c:if test="${not empty error}">
-            <div class="message error">
-                ⚠ ${error}
-            </div>
-        </c:if>
+            <c:if test="${not empty error}">
+                <div class="message error">
+                    ⚠ ${error}
+                </div>
+            </c:if>
+        </div>
 
         <div class="info-box">
             <h3>ℹ️ How It Works</h3>
@@ -270,7 +321,7 @@
             </ul>
         </div>
 
-        <form action="${pageContext.request.contextPath}/adminUpload" method="post" enctype="multipart/form-data" class="upload-form">
+        <form action="${pageContext.request.contextPath}/adminUpload" method="post" enctype="multipart/form-data" class="upload-form" id="adminUploadForm">
             <div class="form-group">
                 <label>Select Files to Upload</label>
                 <div class="file-input-wrapper">
@@ -290,13 +341,21 @@
                     <strong>Note:</strong> Total size of all selected files must not exceed 25 MB.
                     Supported formats: PDF, DOCX, TXT
                 </div>
+
+                <div class="progress-wrapper" id="uploadProgress">
+                    <div class="progress-label">Uploading...</div>
+                    <div class="progress-track">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="progress-status" id="progressText">0%</div>
+                </div>
             </div>
 
             <div class="btn-group">
-                <button type="submit" class="btn btn-primary" id="uploadBtn">
+                <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
                     📤 Upload Documents
                 </button>
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="btn btn-secondary">
+                <a href="${pageContext.request.contextPath}/admin" class="btn btn-secondary">
                     ← Back to Dashboard
                 </a>
             </div>
@@ -304,28 +363,44 @@
     </div>
 
     <script>
+        let selectedFilesArray = [];
+
         function updateFileList(input) {
             const fileList = document.getElementById('fileList');
             const selectedFiles = document.getElementById('selectedFiles');
             const sizeInfo = document.getElementById('sizeInfo');
             const uploadBtn = document.getElementById('uploadBtn');
 
+            selectedFilesArray = Array.from(input.files);
             fileList.innerHTML = '';
             let totalSize = 0;
             const maxSize = 25 * 1024 * 1024; // 25 MB
 
-            if (input.files.length > 0) {
+            if (selectedFilesArray.length > 0) {
                 selectedFiles.classList.add('active');
 
-                for (let i = 0; i < input.files.length; i++) {
-                    const file = input.files[i];
+                selectedFilesArray.forEach((file, index) => {
                     totalSize += file.size;
 
                     const li = document.createElement('li');
                     li.className = 'file-item';
-                    li.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                    li.style.display = 'flex';
+                    li.style.justifyContent = 'space-between';
+                    li.style.alignItems = 'center';
+
+                    const fileInfo = document.createElement('span');
+                    fileInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.textContent = '✕';
+                    removeBtn.style.cssText = 'background: #dc3545; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;';
+                    removeBtn.onclick = () => removeFile(index);
+
+                    li.appendChild(fileInfo);
+                    li.appendChild(removeBtn);
                     fileList.appendChild(li);
-                }
+                });
 
                 const totalMB = (totalSize / 1024 / 1024).toFixed(2);
                 sizeInfo.innerHTML = `<strong>Total Size:</strong> ${totalMB} MB / 25 MB`;
@@ -340,7 +415,122 @@
                 }
             } else {
                 selectedFiles.classList.remove('active');
+                uploadBtn.disabled = true;
             }
+        }
+
+        function removeFile(index) {
+            selectedFilesArray.splice(index, 1);
+            const dataTransfer = new DataTransfer();
+            selectedFilesArray.forEach(file => dataTransfer.items.add(file));
+            document.getElementById('file').files = dataTransfer.files;
+            updateFileList(document.getElementById('file'));
+        }
+
+        const form = document.getElementById('adminUploadForm');
+        const progressWrapper = document.getElementById('uploadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const messageContainer = document.getElementById('message-container');
+
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity() || uploadBtn.disabled) {
+                return;
+            }
+            event.preventDefault();
+
+            if (selectedFilesArray.length === 0) {
+                displayMessage('Please select at least one file to upload.', 'error');
+                return;
+            }
+
+            messageContainer.innerHTML = '';
+            progressWrapper.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Preparing to upload ' + selectedFilesArray.length + ' file(s)...';
+            uploadBtn.disabled = true;
+
+            uploadFilesSequentially(0);
+        });
+
+        function uploadFilesSequentially(index) {
+            if (index >= selectedFilesArray.length) {
+                // All files uploaded successfully
+                progressBar.style.backgroundColor = '#28a745';
+                progressText.textContent = 'All files uploaded successfully!';
+                displayMessage('Successfully uploaded ' + selectedFilesArray.length + ' file(s).', 'success');
+
+                setTimeout(() => {
+                    form.reset();
+                    selectedFilesArray = [];
+                    updateFileList(document.getElementById('file'));
+                    progressWrapper.style.display = 'none';
+                    uploadBtn.disabled = true;
+
+                    // Redirect to dashboard to see the uploaded files
+                    window.location.href = '${pageContext.request.contextPath}/admin/dashboard';
+                }, 1500);
+                return;
+            }
+
+            const file = selectedFilesArray[index];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+
+            progressText.textContent = `Uploading file ${index + 1} of ${selectedFilesArray.length}: ${file.name}`;
+            progressBar.style.width = '0%';
+
+            xhr.open('POST', form.action, true);
+
+            xhr.upload.addEventListener('progress', function (e) {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    const overallProgress = ((index + (e.loaded / e.total)) / selectedFilesArray.length) * 100;
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `Uploading file ${index + 1}/${selectedFilesArray.length}: ${file.name} - ${percent}% (Overall: ${overallProgress.toFixed(0)}%)`;
+                }
+            });
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // Success, upload next file
+                        uploadFilesSequentially(index + 1);
+                    } else {
+                        // Error occurred
+                        uploadBtn.disabled = false;
+                        progressBar.style.backgroundColor = '#dc3545';
+                        progressText.textContent = 'Upload failed for: ' + file.name;
+
+                        try {
+                            const response = xhr.responseText;
+                            displayMessage('Failed to upload ' + file.name + ': ' + (response || 'Unknown error'), 'error');
+                        } catch (e) {
+                            displayMessage('Failed to upload ' + file.name + ': Server error', 'error');
+                        }
+                    }
+                }
+            };
+
+            xhr.onerror = function () {
+                uploadBtn.disabled = false;
+                progressBar.style.backgroundColor = '#dc3545';
+                progressText.textContent = 'Network error for: ' + file.name;
+                displayMessage('Network error while uploading ' + file.name, 'error');
+            };
+
+            xhr.send(formData);
+        }
+
+        function displayMessage(msg, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = (type === 'success' ? '✓ ' : '⚠ ') + msg;
+            messageContainer.innerHTML = '';
+            messageContainer.appendChild(messageDiv);
         }
     </script>
 </body>

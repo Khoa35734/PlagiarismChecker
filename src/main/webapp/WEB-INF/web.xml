@@ -24,15 +24,6 @@
     </listener>
 
     <servlet>
-        <servlet-name>LoginServlet</servlet-name>
-        <servlet-class>controller.LoginServlet</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>LoginServlet</servlet-name>
-        <url-pattern>/login</url-pattern>
-    </servlet-mapping>
-
-    <servlet>
         <servlet-name>UploadServlet</servlet-name>
         <servlet-class>controller.UploadServlet</servlet-class>
     </servlet>
@@ -54,6 +45,10 @@
         <servlet-name>AdminLoginServlet</servlet-name>
         <servlet-class>controller.AdminLoginServlet</servlet-class>
     </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminLoginServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
     <servlet-mapping>
         <servlet-name>AdminLoginServlet</servlet-name>
         <url-pattern>/adminLogin</url-pattern>

@@ -30,7 +30,7 @@ public class AdminLoginServlet extends HttpServlet {
                 HttpSession session = request.getSession(true);
                 session.setAttribute("adminLoggedIn", true);
                 session.setAttribute("adminId", adminId);
-                response.sendRedirect(request.getContextPath() + "/admin/dashboard");
+                response.sendRedirect(request.getContextPath() + "/admin");
                 return;
             }
         } catch (SQLException ex) {
