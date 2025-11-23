@@ -1,0 +1,330 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib uri="jakarta.tags.core" prefix="c" %>
+<%@ taglib uri="jakarta.tags.fmt" prefix="fmt" %>
+<%@ taglib uri="jakarta.tags.functions" prefix="fn" %>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Document Repository</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .documents-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .section-header h2 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        .info-note {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            color: #555;
+        }
+
+        .info-note strong {
+            color: #667eea;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .filename-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.3s ease;
+        }
+
+        .filename-link:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .file-icon {
+            font-size: 20px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Admin Dashboard - Reference Documents</h1>
+            <div class="header-actions">
+                <a href="${pageContext.request.contextPath}/adminUpload" class="btn btn-primary">
+                    📤 Upload Document
+                </a>
+                <a href="${pageContext.request.contextPath}/jsp/adminLogin.jsp" class="btn btn-secondary">
+                    🚪 Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>📁 TOTAL DOCUMENTS</h3>
+                <div class="stat-value">${documents.size()}</div>
+            </div>
+            <div class="stat-card">
+                <h3>💾 TOTAL STORAGE</h3>
+                <div class="stat-value">
+                    <c:set var="totalSize" value="0" />
+                    <c:forEach var="doc" items="${documents}">
+                        <c:set var="totalSize" value="${totalSize + doc.filesize}" />
+                    </c:forEach>
+                    <fmt:formatNumber value="${totalSize / 1024 / 1024}" maxFractionDigits="2" /> MB
+                </div>
+            </div>
+            <div class="stat-card">
+                <h3>✅ STATUS</h3>
+                <div class="stat-value" style="font-size: 24px; color: #28a745;">Active</div>
+            </div>
+        </div>
+
+        <div class="documents-section">
+            <div class="section-header">
+                <h2>📄 Reference Document Repository</h2>
+            </div>
+
+            <div class="info-note">
+                <strong>ℹ️ How it works:</strong> These documents serve as the reference corpus for plagiarism checking.
+                When users upload files to check for plagiarism, their content will be compared against all documents in this repository.
+                Click on any filename to download it.
+            </div>
+
+            <c:choose>
+                <c:when test="${empty documents}">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <h3>No Reference Documents Yet</h3>
+                        <p>Upload documents to build your reference corpus for plagiarism checking.</p>
+                        <a href="${pageContext.request.contextPath}/adminUpload" class="btn btn-primary" style="margin-top: 20px;">
+                            Upload First Document
+                        </a>
+                    </div>
+                </c:when>
+                <c:otherwise>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Filename (Click to Download)</th>
+                                <th>Owner</th>
+                                <th>Size</th>
+                                <th>Upload Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <c:forEach var="doc" items="${documents}">
+                                <tr>
+                                    <td><strong>#${doc.id}</strong></td>
+                                    <td>
+                                        <a href="${pageContext.request.contextPath}/admin/download?id=${doc.id}"
+                                           class="filename-link"
+                                           title="Click to download ${doc.filename}">
+                                            <c:set var="ext" value="${fn:toLowerCase(fn:substringAfter(doc.filename, '.'))}" />
+                                            <span class="file-icon">
+                                                <c:choose>
+                                                    <c:when test="${ext == 'pdf'}">📕</c:when>
+                                                    <c:when test="${ext == 'docx' or ext == 'doc'}">📘</c:when>
+                                                    <c:when test="${ext == 'txt'}">📄</c:when>
+                                                    <c:otherwise>📎</c:otherwise>
+                                                </c:choose>
+                                            </span>
+                                            <span>${doc.filename}</span>
+                                        </a>
+                                    </td>
++                                    <td>${doc.ownerName}</td>
+                                    <td>
+                                        <fmt:formatNumber value="${doc.filesize / 1024}" maxFractionDigits="2" /> KB
+                                    </td>
+                                    <td>
+                                        <fmt:formatDate value="${doc.uploadTime}" pattern="dd/MM/yyyy HH:mm" />
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <form action="${pageContext.request.contextPath}/admin/delete"
+                                                  method="post"
+                                                  style="display:inline"
+                                                  onsubmit="return confirm('Are you sure you want to delete ${doc.filename}? This will affect plagiarism checking.');">
+                                                <input type="hidden" name="id" value="${doc.id}" />
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    🗑️ Delete
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </c:forEach>
+                        </tbody>
+                    </table>
+                </c:otherwise>
+            </c:choose>
+        </div>
+    </div>
+</body>
+</html>
