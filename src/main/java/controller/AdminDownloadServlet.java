@@ -42,7 +42,12 @@ public class AdminDownloadServlet extends HttpServlet {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
-            File file = new File(getServletContext().getRealPath(""), doc.filepath);
+            String storedPath = doc.filepath;
+            File file = new File(storedPath);
+            if (!file.isAbsolute()) {
+                // stored path is relative to webapp root
+                file = new File(getServletContext().getRealPath(""), storedPath);
+            }
             if (!file.exists()) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;

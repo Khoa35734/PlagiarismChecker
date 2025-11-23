@@ -1,0 +1,47 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plagiarism Checker</title>
+    <link rel="stylesheet" href="/PlagiarismChecker-1.0-SNAPSHOT/css/style.css" />
+</head>
+<body>
+<div class="container">
+    <h1>Plagiarism Checker</h1>
+    <p class="info">Upload PDF, DOCX, or TXT files (total ≤ 25 MB). You do not need an account—each batch receives a private guest link to view results.</p>
+    <nav>
+        <span>Signed in as <strong></strong></span>
+        <a href="/PlagiarismChecker-1.0-SNAPSHOT/upload">Upload</a>
+        <a href="/PlagiarismChecker-1.0-SNAPSHOT/results">Results</a>
+        <a href="/PlagiarismChecker-1.0-SNAPSHOT/login?logout=true">Logout</a>
+    </nav>
+    <section>
+        <h2>Submit your work</h2>
+        <p>Upload a PDF, DOCX, or TXT file, or paste your content below.</p>
+        
+            <div class="alert error">Total upload size must not exceed 25MB.</div>
+        
+        
+        <form action="/PlagiarismChecker-1.0-SNAPSHOT/upload" method="post" enctype="multipart/form-data" class="form-card">
+            <label for="files">Select files (processed sequentially):</label>
+            <input type="file" id="files" name="files" accept=".pdf,.docx,.txt" multiple required />
+            <small class="helper">Total size of all files must stay under 25 MB. Larger batches will be rejected.</small>
+
+            <label for="textContent">Or paste content for quick checks:</label>
+            <textarea id="textContent" name="textContent" rows="8" placeholder="Paste content here..."></textarea>
+
+            <label for="filenameOverride">Optional label (used when pasting text):</label>
+            <input type="text" id="filenameOverride" name="filenameOverride" placeholder="my-submission.txt" />
+
+            <button type="submit">Start Check</button>
+        </form>
+        
+            <div class="info">
+                <a href="/PlagiarismChecker-1.0-SNAPSHOT/results">View previous results for this session</a>
+            </div>
+        
+    </section>
+</div>
+</body>
+</html>

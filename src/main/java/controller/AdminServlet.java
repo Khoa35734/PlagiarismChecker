@@ -22,8 +22,8 @@ public class AdminServlet extends HttpServlet {
 
         // Check if admin is logged in
         if (session != null && session.getAttribute("adminLoggedIn") != null && (Boolean) session.getAttribute("adminLoggedIn")) {
-            // Forward to the admin dashboard JSP
-            request.getRequestDispatcher("/jsp/adminDashboard.jsp").forward(request, response);
+            // Redirect to the dashboard servlet which prepares the document list
+            response.sendRedirect(request.getContextPath() + "/admin/dashboard");
         } else {
             // Redirect to the correct login page
             response.sendRedirect(request.getContextPath() + "/login");

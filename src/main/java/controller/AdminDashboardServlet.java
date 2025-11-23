@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import model.DatabaseUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -51,6 +52,38 @@ public class AdminDashboardServlet extends HttpServlet {
         }
 
         request.setAttribute("documents", documents);
+        // If DB has no documents (e.g., uploads saved to file system but not inserted),
+        // try to populate from the persistent upload directory so admin sees files.
+        if (documents.isEmpty()) {
+            String appPath = request.getServletContext().getRealPath("");
+            String configured = request.getServletContext().getInitParameter("persistentUploadDir");
+            String uploadDirPath = null;
+            if (configured != null && !configured.isBlank()) {
+                File cfg = new File(configured.trim());
+                if (!cfg.isAbsolute()) uploadDirPath = appPath + File.separator + configured.trim();
+                else uploadDirPath = configured.trim();
+            } else {
+                uploadDirPath = appPath + File.separator + "documents";
+            }
+            File uploadDir = new File(uploadDirPath);
+            if (uploadDir.exists() && uploadDir.isDirectory()) {
+                File[] files = uploadDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile()) {
+                            DocumentRow row = new DocumentRow();
+                            row.id = 0;
+                            row.filename = f.getName();
+                            row.filesize = f.length();
+                            row.uploadTime = new java.sql.Timestamp(f.lastModified());
+                            row.ownerName = "admin";
+                            documents.add(row);
+                        }
+                    }
+                }
+            }
+            request.setAttribute("documents", documents);
+        }
         RequestDispatcher dispatcher = request.getRequestDispatcher("/jsp/adminDashboard.jsp");
         dispatcher.forward(request, response);
     }

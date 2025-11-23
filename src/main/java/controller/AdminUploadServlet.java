@@ -17,15 +17,18 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 @MultipartConfig(
-    fileSizeThreshold = 1024 * 1024, // 1 MB
-    maxFileSize = 1024 * 1024 * 10,      // 10 MB
-    maxRequestSize = 1024 * 1024 * 25    // 25 MB
+    // No application-level limit for admin uploads: allow the container to accept large files.
+    // Use -1L for maxFileSize and maxRequestSize to indicate "unlimited" where supported.
+    fileSizeThreshold = 0,
+    maxFileSize = -1L,
+    maxRequestSize = -1L
 )
 public class AdminUploadServlet extends HttpServlet {
     private static final String UPLOAD_DIR = "documents";
@@ -69,7 +72,23 @@ public class AdminUploadServlet extends HttpServlet {
             }
 
             String applicationPath = request.getServletContext().getRealPath("");
-            String uploadFilePath = applicationPath + File.separator + UPLOAD_DIR;
+            // Prefer a persistent upload directory configured in web.xml (context-param "persistentUploadDir").
+            // If not configured, fall back to the webapp's documents folder (not ideal for persistence across redeploys).
+            String configured = request.getServletContext().getInitParameter("persistentUploadDir");
+            String uploadFilePath;
+            boolean storeAbsolute = false;
+            if (configured != null && !configured.isBlank()) {
+                uploadFilePath = configured.trim();
+                // If configured path is relative, resolve against applicationPath
+                File cfgFile = new File(uploadFilePath);
+                if (!cfgFile.isAbsolute()) {
+                    uploadFilePath = applicationPath + File.separator + uploadFilePath;
+                } else {
+                    storeAbsolute = true;
+                }
+            } else {
+                uploadFilePath = applicationPath + File.separator + UPLOAD_DIR;
+            }
             File uploadDir = new File(uploadFilePath);
             if (!uploadDir.exists() && !uploadDir.mkdirs()) {
                 throw new IOException("Unable to create upload directory at " + uploadFilePath);
@@ -78,11 +97,38 @@ public class AdminUploadServlet extends HttpServlet {
             for (Part part : parts) {
                 if (part.getName().equals("file") && part.getSize() > 0) {
                     String fileName = Paths.get(part.getSubmittedFileName()).getFileName().toString();
+                    // Prevent duplicate filenames for the same admin
+                    if (documentExists(adminId, fileName)) {
+                        response.setStatus(HttpServletResponse.SC_CONFLICT);
+                        response.getWriter().write("{\"error\": \"A document with the name '" + fileName + "' already exists. Please rename the file before uploading.\"}");
+                        return;
+                    }
                     String filePath = uploadFilePath + File.separator + fileName;
+                    // Also prevent uploading a file that already exists on disk
+                    File existing = new File(filePath);
+                    if (existing.exists()) {
+                        response.setStatus(HttpServletResponse.SC_CONFLICT);
+                        response.getWriter().write("{\"error\": \"A document with the name '" + fileName + "' already exists on disk. Please rename the file before uploading.\"}");
+                        return;
+                    }
                     
                     try (InputStream fileContent = part.getInputStream()) {
                         Files.copy(fileContent, Paths.get(filePath), StandardCopyOption.REPLACE_EXISTING);
-                        saveDocument(adminId, fileName, UPLOAD_DIR + "/" + fileName, part.getSize(), part.getContentType());
+                        // Store relative path if we used the webapp documents folder; otherwise store absolute path
+                        String storedPath;
+                        if (storeAbsolute) {
+                            storedPath = filePath.replace("\\", "/"); // normalize for DB
+                        } else {
+                            // compute relative path from applicationPath if possible
+                            if (filePath.startsWith(applicationPath)) {
+                                String rel = filePath.substring(applicationPath.length());
+                                if (rel.startsWith(File.separator) || rel.startsWith("/")) rel = rel.substring(1);
+                                storedPath = rel.replace("\\", "/");
+                            } else {
+                                storedPath = UPLOAD_DIR + "/" + fileName;
+                            }
+                        }
+                        saveDocument(adminId, fileName, storedPath, part.getSize(), part.getContentType());
                         uploadedFiles.add(fileName);
                     }
                 }
@@ -115,5 +161,20 @@ public class AdminUploadServlet extends HttpServlet {
             statement.setString(5, mimeType);
             statement.executeUpdate();
         }
+    }
+
+    private boolean documentExists(int ownerId, String filename) throws SQLException {
+        String sql = "SELECT COUNT(1) FROM Documents WHERE owner_id = ? AND filename = ?";
+        try (Connection connection = DatabaseUtils.getConnection();
+             PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, ownerId);
+            ps.setString(2, filename);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        }
+        return false;
     }
 }

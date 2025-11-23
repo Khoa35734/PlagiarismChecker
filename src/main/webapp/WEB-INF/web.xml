@@ -16,7 +16,16 @@
     </context-param>
     <context-param>
         <param-name>jdbcPassword</param-name>
-        <param-value>khoakhoa04</param-value>
+        <param-value>123456789Quoc#</param-value>
+    </context-param>
+
+    <!-- Optional: set a persistent upload directory outside the exploded WAR so uploaded documents survive redeploys.
+         If set to an absolute path, files will be saved there. If set to a relative path, it will be resolved
+         relative to the webapp root. If omitted, files are saved under the webapp's documents/ folder (not persistent).
+         Example: E:/btLTM/PlagiarismChecker/documents -->
+    <context-param>
+        <param-name>persistentUploadDir</param-name>
+        <param-value>E:/btLTM/PlagiarismChecker/documents</param-value>
     </context-param>
 
     <listener>
