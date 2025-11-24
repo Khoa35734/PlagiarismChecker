@@ -7,7 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
-import model.DatabaseUtils;
+import model.bo.DocumentBO;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,10 +15,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+ 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -98,7 +95,8 @@ public class AdminUploadServlet extends HttpServlet {
                 if (part.getName().equals("file") && part.getSize() > 0) {
                     String fileName = Paths.get(part.getSubmittedFileName()).getFileName().toString();
                     // Prevent duplicate filenames for the same admin
-                    if (documentExists(adminId, fileName)) {
+                    DocumentBO dbo = new DocumentBO();
+                    if (dbo.documentExists(adminId, fileName)) {
                         response.setStatus(HttpServletResponse.SC_CONFLICT);
                         response.getWriter().write("{\"error\": \"A document with the name '" + fileName + "' already exists. Please rename the file before uploading.\"}");
                         return;
@@ -128,7 +126,7 @@ public class AdminUploadServlet extends HttpServlet {
                                 storedPath = UPLOAD_DIR + "/" + fileName;
                             }
                         }
-                        saveDocument(adminId, fileName, storedPath, part.getSize(), part.getContentType());
+                        dbo.saveDocument(adminId, fileName, storedPath, part.getSize(), part.getContentType());
                         uploadedFiles.add(fileName);
                     }
                 }
@@ -149,32 +147,5 @@ public class AdminUploadServlet extends HttpServlet {
         }
     }
 
-    private void saveDocument(int ownerId, String filename, String filepath, long size, String mimeType) throws SQLException {
-        String sql = "INSERT INTO Documents (owner_id, filename, filepath, filesize, mime_type) VALUES (?, ?, ?, ?, ?) " +
-                     "ON DUPLICATE KEY UPDATE filepath=VALUES(filepath), filesize=VALUES(filesize), upload_time=NOW()";
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, ownerId);
-            statement.setString(2, filename);
-            statement.setString(3, filepath);
-            statement.setLong(4, size);
-            statement.setString(5, mimeType);
-            statement.executeUpdate();
-        }
-    }
-
-    private boolean documentExists(int ownerId, String filename) throws SQLException {
-        String sql = "SELECT COUNT(1) FROM Documents WHERE owner_id = ? AND filename = ?";
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setInt(1, ownerId);
-            ps.setString(2, filename);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1) > 0;
-                }
-            }
-        }
-        return false;
-    }
+    // persistence moved to model.bo.DocumentBO / model.dao.DocumentDAO
 }

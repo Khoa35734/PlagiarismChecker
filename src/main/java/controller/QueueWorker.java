@@ -224,11 +224,14 @@ public class QueueWorker implements ServletContextListener {
         }
         allSegments.append("]");
 
+        // Map similarity ranges to the allowed database ENUM values.
+        // The Results.status column allows: 'Plagiarism Suspected','Properly Cited','No Issues'
         String status;
         if (maxSimilarity > 0.5) {
             status = "Plagiarism Suspected";
         } else if (maxSimilarity > 0.2) {
-            status = "Partial Match";
+            // use 'Properly Cited' for moderate matches so it fits the DB enum
+            status = "Properly Cited";
         } else {
             status = "No Issues";
         }

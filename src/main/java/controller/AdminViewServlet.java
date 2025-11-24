@@ -6,13 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.DatabaseUtils;
-
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,24 +22,18 @@ public class AdminViewServlet extends HttpServlet {
             return;
         }
 
+        // Use DocumentBO to fetch documents instead of inline SQL
+        model.bo.DocumentBO docBo = new model.bo.DocumentBO();
+        java.util.List<model.bean.DocumentBean> docs = docBo.listDocumentsByOwner(adminId);
         List<DocumentRow> documents = new ArrayList<>();
-        String sql = "SELECT id, filename, upload_time, filesize FROM Documents WHERE owner_id = ? ORDER BY upload_time DESC";
-
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, adminId);
-            try (ResultSet rs = statement.executeQuery()) {
-                while (rs.next()) {
-                    DocumentRow row = new DocumentRow();
-                    row.id = rs.getInt("id");
-                    row.filename = rs.getString("filename");
-                    row.uploadTime = rs.getTimestamp("upload_time");
-                    row.filesize = rs.getLong("filesize");
-                    documents.add(row);
-                }
-            }
-        } catch (SQLException e) {
-            throw new ServletException("Database error while fetching documents", e);
+        for (model.bean.DocumentBean d : docs) {
+            DocumentRow row = new DocumentRow();
+            row.id = d.getId();
+            row.filename = d.getOriginalName();
+            row.filesize = d.getSize();
+            java.time.Instant t = d.getUploadedAt();
+            row.uploadTime = t == null ? null : java.sql.Timestamp.from(t);
+            documents.add(row);
         }
 
         request.setAttribute("documents", documents);

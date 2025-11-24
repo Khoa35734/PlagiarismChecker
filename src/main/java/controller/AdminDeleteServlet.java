@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.DatabaseUtils;
+import model.bo.DocumentBO;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -33,22 +33,17 @@ public class AdminDeleteServlet extends HttpServlet {
 
         try {
             int documentId = Integer.parseInt(idParam);
-            deleteDocument(documentId, adminId);
+            DocumentBO bo = new DocumentBO();
+            boolean ok = bo.deleteDocument(documentId, adminId);
+            if (!ok) {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Document not found or not owned by you.");
+                return;
+            }
             response.sendRedirect(request.getContextPath() + "/admin/dashboard");
         } catch (NumberFormatException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid document ID format.");
-        } catch (SQLException e) {
-            throw new ServletException("Database error while deleting document", e);
         }
     }
 
-    private void deleteDocument(int documentId, int ownerId) throws SQLException {
-        String sql = "DELETE FROM Documents WHERE id = ? AND owner_id = ?";
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, documentId);
-            statement.setInt(2, ownerId);
-            statement.executeUpdate();
-        }
-    }
+    // database interaction moved to model.bo.DocumentBO / model.dao.DocumentDAO
 }
