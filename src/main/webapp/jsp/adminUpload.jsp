@@ -316,7 +316,12 @@
             <ul>
                 <li>Upload reference documents (PDF, DOCX, TXT) to build your corpus</li>
                 <li>When users check for plagiarism, their content is compared against these documents</li>
-                <li>Maximum batch size: <strong>25 MB</strong></li>
+                <li>Maximum batch size: <strong>
+                    <c:choose>
+                        <c:when test="${sessionScope.adminLoggedIn}">No limit (admin)</c:when>
+                        <c:otherwise>25 MB</c:otherwise>
+                    </c:choose>
+                </strong></li>
                 <li>All uploaded documents are stored in your private repository</li>
             </ul>
         </div>
@@ -338,7 +343,15 @@
                     <div class="helper-text" id="sizeInfo"></div>
                 </div>
                 <div class="helper-text">
-                    <strong>Note:</strong> Total size of all selected files must not exceed 25 MB.
+                    <strong>Note:</strong>
+                    <c:choose>
+                        <c:when test="${sessionScope.adminLoggedIn}">
+                            Admins have no client-side batch size limit here; server/container limits may still apply.
+                        </c:when>
+                        <c:otherwise>
+                            Total size of all selected files must not exceed 25 MB.
+                        </c:otherwise>
+                    </c:choose>
                     Supported formats: PDF, DOCX, TXT
                 </div>
 
@@ -374,7 +387,8 @@
             selectedFilesArray = Array.from(input.files);
             fileList.innerHTML = '';
             let totalSize = 0;
-            const maxSize = 25 * 1024 * 1024; // 25 MB
+            // server-provided max size in bytes; -1 = no client-side limit (admin)
+            const maxSize = <c:choose><c:when test="${sessionScope.adminLoggedIn}">-1</c:when><c:otherwise>26214400</c:otherwise></c:choose>;
 
             if (selectedFilesArray.length > 0) {
                 selectedFiles.classList.add('active');
@@ -389,7 +403,8 @@
                     li.style.alignItems = 'center';
 
                     const fileInfo = document.createElement('span');
-                    fileInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                    // Avoid JSP EL parsing of dollar-curly patterns inside JS template literals by using string concatenation
+                    fileInfo.textContent = file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB)';
 
                     const removeBtn = document.createElement('button');
                     removeBtn.type = 'button';
@@ -403,11 +418,13 @@
                 });
 
                 const totalMB = (totalSize / 1024 / 1024).toFixed(2);
-                sizeInfo.innerHTML = `<strong>Total Size:</strong> ${totalMB} MB / 25 MB`;
+                // Display max size or 'No limit' when admin
+                const maxDisplay = (maxSize === -1) ? 'No limit' : ((maxSize / 1024 / 1024).toFixed(2) + ' MB');
+                sizeInfo.innerHTML = '<strong>Total Size:</strong> ' + totalMB + ' MB / ' + maxDisplay;
 
-                if (totalSize > maxSize) {
+                if (maxSize !== -1 && totalSize > maxSize) {
                     sizeInfo.style.color = '#dc3545';
-                    sizeInfo.innerHTML += '<br><strong>⚠ Error:</strong> Total size exceeds 25 MB limit!';
+                    sizeInfo.innerHTML += '<br><strong>⚠ Error:</strong> Total size exceeds ' + maxDisplay + ' limit!';
                     uploadBtn.disabled = true;
                 } else {
                     sizeInfo.style.color = '#28a745';
@@ -480,7 +497,8 @@
 
             const xhr = new XMLHttpRequest();
 
-            progressText.textContent = `Uploading file ${index + 1} of ${selectedFilesArray.length}: ${file.name}`;
+            // Avoid JSP EL parsing by using concatenation
+            progressText.textContent = 'Uploading file ' + (index + 1) + ' of ' + selectedFilesArray.length + ': ' + file.name;
             progressBar.style.width = '0%';
 
             xhr.open('POST', form.action, true);
@@ -490,7 +508,8 @@
                     const percent = Math.round((e.loaded / e.total) * 100);
                     const overallProgress = ((index + (e.loaded / e.total)) / selectedFilesArray.length) * 100;
                     progressBar.style.width = percent + '%';
-                    progressText.textContent = `Uploading file ${index + 1}/${selectedFilesArray.length}: ${file.name} - ${percent}% (Overall: ${overallProgress.toFixed(0)}%)`;
+                    // Build string with concatenation to prevent JSP EL parsing of dollar-curly patterns
+                    progressText.textContent = 'Uploading file ' + (index + 1) + '/' + selectedFilesArray.length + ': ' + file.name + ' - ' + percent + '% (Overall: ' + overallProgress.toFixed(0) + '%)';
                 }
             });
 
@@ -527,7 +546,8 @@
 
         function displayMessage(msg, type) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}`;
+            // Use concatenation to prevent JSP EL from trying to evaluate ${type}
+            messageDiv.className = 'message ' + type;
             messageDiv.textContent = (type === 'success' ? '✓ ' : '⚠ ') + msg;
             messageContainer.innerHTML = '';
             messageContainer.appendChild(messageDiv);

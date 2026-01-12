@@ -7,7 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
-import model.DatabaseUtils;
+import model.bo.SubmissionBO;
+import model.bean.SubmissionBean;
 import utils.FileParser;
 import utils.TextCleaner;
 
@@ -106,7 +107,19 @@ public class UploadServlet extends HttpServlet {
             try (InputStream dataStream = new ByteArrayInputStream(payload.bytes)) {
                 String rawContent = FileParser.extractText(dataStream, payload.filename);
                 String cleanedContent = TextCleaner.clean(rawContent);
-                int submissionId = saveSubmission(batchToken, guestToken, userId, payload.filename, rawContent, cleanedContent, payload.bytes.length, stackOrder);
+                SubmissionBean s = new SubmissionBean();
+                s.setBatchToken(batchToken);
+                s.setGuestToken(guestToken);
+                s.setUserId(userId);
+                s.setFilename(payload.filename);
+                s.setRawContent(rawContent);
+                s.setCleanedContent(cleanedContent);
+                s.setUploadSize(payload.bytes.length);
+                s.setStackOrder(stackOrder);
+                s.setStatus("QUEUED");
+
+                SubmissionBO submissionBO = new SubmissionBO();
+                int submissionId = submissionBO.createSubmission(s);
                 submissionIds.add(submissionId);
                 tickets.add(new QueueTicket(submissionId, QueueWorker.enqueueSubmission(submissionId)));
                 rememberSubmission(session, submissionId);
@@ -145,33 +158,7 @@ public class UploadServlet extends HttpServlet {
         session.setAttribute(SESSION_SUBMISSIONS, submissionIds);
     }
 
-    private int saveSubmission(String batchToken, String guestToken, Integer userId, String filename, String rawContent,
-                               String cleanedContent, long uploadSize, int stackOrder) throws SQLException {
-        String sql = "INSERT INTO Submissions (batch_token, guest_token, user_id, filename, raw_content, cleaned_content, status, stack_order, upload_size) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)";
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setString(1, batchToken);
-            statement.setString(2, guestToken);
-            if (userId != null) {
-                statement.setInt(3, userId);
-            } else {
-                statement.setNull(3, java.sql.Types.INTEGER);
-            }
-            statement.setString(4, filename);
-            statement.setString(5, rawContent);
-            statement.setString(6, cleanedContent);
-            statement.setInt(7, stackOrder);
-            statement.setLong(8, uploadSize);
-            statement.executeUpdate();
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getInt(1);
-                }
-            }
-        }
-        throw new SQLException("Failed to persist submission");
-    }
+    // persistence moved to model.bo.SubmissionBO / model.dao.SubmissionDAO
 
     private record FilePayload(String filename, byte[] bytes) {
     }

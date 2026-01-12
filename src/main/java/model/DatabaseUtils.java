@@ -9,9 +9,9 @@ import java.util.Objects;
  * Centralized JDBC helper that gets configured from web.xml context params.
  */
 public final class DatabaseUtils {
-    private static String jdbcUrl;
-    private static String jdbcUser;
-    private static String jdbcPassword;
+    private static String jdbcUrl = "jdbc:mysql://localhost:3306/plagiarism_checker";
+    private static String jdbcUser = "root";
+    private static String jdbcPassword = "123456789Quoc#";
     private static volatile boolean driverLoaded;
 
     private DatabaseUtils() {
@@ -26,7 +26,22 @@ public final class DatabaseUtils {
     public static Connection getConnection() throws SQLException {
         ensureConfigured();
         loadDriver();
-        return DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPassword);
+        // Some MySQL servers use caching_sha2_password which may require
+        // the connector to allow public key retrieval. If the JDBC URL
+        // doesn't explicitly allow it, append parameters that enable
+        // public key retrieval and disable SSL for local development.
+        String effectiveUrl = jdbcUrl;
+        if (effectiveUrl != null && effectiveUrl.startsWith("jdbc:mysql://")) {
+            // if there are already query params, use '&' otherwise start with '?'
+            String join = effectiveUrl.contains("?") ? "&" : "?";
+            if (!effectiveUrl.toLowerCase().contains("allowpublickeyretrieval")) {
+                effectiveUrl = effectiveUrl + join + "allowPublicKeyRetrieval=true&useSSL=false";
+            }
+        }
+
+        // Log the effective URL and user for debugging auth issues
+        System.out.println("[DatabaseUtils] Connecting to: " + effectiveUrl + " as user='" + jdbcUser + "'");
+        return DriverManager.getConnection(effectiveUrl, jdbcUser, jdbcPassword);
     }
 
     private static void ensureConfigured() {

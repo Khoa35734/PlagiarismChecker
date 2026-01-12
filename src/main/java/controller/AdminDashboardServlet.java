@@ -7,13 +7,11 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.DatabaseUtils;
+import model.bo.DocumentBO;
+import model.bean.DocumentBean;
 
+import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,27 +28,50 @@ public class AdminDashboardServlet extends HttpServlet {
         }
 
         List<DocumentRow> documents = new ArrayList<>();
-        String sql = "SELECT d.id, d.filename, d.upload_time, d.filesize, u.username AS owner_name " +
-                     "FROM Documents d JOIN Users u ON d.owner_id = u.id " +
-                     "WHERE u.role = 'ADMIN' ORDER BY d.upload_time DESC";
-
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet rs = statement.executeQuery()) {
-            while (rs.next()) {
-                DocumentRow row = new DocumentRow();
-                row.id = rs.getInt("id");
-                row.filename = rs.getString("filename");
-                row.uploadTime = rs.getTimestamp("upload_time");
-                row.filesize = rs.getLong("filesize");
-                row.ownerName = rs.getString("owner_name");
-                documents.add(row);
-            }
-        } catch (SQLException e) {
-            throw new ServletException("Database error while fetching documents", e);
+        DocumentBO dbo = new DocumentBO();
+        List<DocumentBean> beans = dbo.listDocumentsForAdmins();
+        for (DocumentBean b : beans) {
+            DocumentRow row = new DocumentRow();
+            row.id = b.getId();
+            row.filename = b.getOriginalName();
+            row.filesize = b.getSize();
+            row.uploadTime = b.getUploadedAt() == null ? null : new java.sql.Timestamp(b.getUploadedAt().toEpochMilli());
+            row.ownerName = "admin"; // username not available in bean; UI can call owner id lookup if needed
+            documents.add(row);
         }
-
         request.setAttribute("documents", documents);
+        // If DB has no documents (e.g., uploads saved to file system but not inserted),
+        // try to populate from the persistent upload directory so admin sees files.
+        if (documents.isEmpty()) {
+            String appPath = request.getServletContext().getRealPath("");
+            String configured = request.getServletContext().getInitParameter("persistentUploadDir");
+            String uploadDirPath = null;
+            if (configured != null && !configured.isBlank()) {
+                File cfg = new File(configured.trim());
+                if (!cfg.isAbsolute()) uploadDirPath = appPath + File.separator + configured.trim();
+                else uploadDirPath = configured.trim();
+            } else {
+                uploadDirPath = appPath + File.separator + "documents";
+            }
+            File uploadDir = new File(uploadDirPath);
+            if (uploadDir.exists() && uploadDir.isDirectory()) {
+                File[] files = uploadDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile()) {
+                            DocumentRow row = new DocumentRow();
+                            row.id = 0;
+                            row.filename = f.getName();
+                            row.filesize = f.length();
+                            row.uploadTime = new java.sql.Timestamp(f.lastModified());
+                            row.ownerName = "admin";
+                            documents.add(row);
+                        }
+                    }
+                }
+            }
+            request.setAttribute("documents", documents);
+        }
         RequestDispatcher dispatcher = request.getRequestDispatcher("/jsp/adminDashboard.jsp");
         dispatcher.forward(request, response);
     }

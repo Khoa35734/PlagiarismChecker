@@ -5,13 +5,10 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.DatabaseUtils;
+import model.bo.UserBO;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+ 
 
 public class AdminLoginServlet extends HttpServlet {
     @Override
@@ -24,34 +21,18 @@ public class AdminLoginServlet extends HttpServlet {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
-        try {
-            Integer adminId = authenticate(username, password);
-            if (adminId != null) {
-                HttpSession session = request.getSession(true);
-                session.setAttribute("adminLoggedIn", true);
-                session.setAttribute("adminId", adminId);
-                response.sendRedirect(request.getContextPath() + "/admin");
-                return;
-            }
-        } catch (SQLException ex) {
-            throw new ServletException("Failed to authenticate admin", ex);
+        UserBO userBO = new UserBO();
+        Integer adminId = userBO.authenticateAdmin(username, password);
+        if (adminId != null) {
+            HttpSession session = request.getSession(true);
+            session.setAttribute("adminLoggedIn", true);
+            session.setAttribute("adminId", adminId);
+            response.sendRedirect(request.getContextPath() + "/admin");
+            return;
         }
 
         request.getRequestDispatcher("/jsp/adminLogin.jsp").forward(request, response);
     }
 
-    private Integer authenticate(String username, String password) throws SQLException {
-        String sql = "SELECT id FROM Users WHERE username = ? AND password = ? AND role = 'ADMIN'";
-        try (Connection connection = DatabaseUtils.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, username);
-            statement.setString(2, password);
-            try (ResultSet rs = statement.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("id");
-                }
-            }
-        }
-        return null;
-    }
+    // Authentication moved to model.bo.UserBO
 }
